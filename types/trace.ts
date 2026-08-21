@@ -18,4 +18,5 @@ export interface GraphEdge {
   id: string;
   from: string;
   to: string;
+  kind: 'hierarchy' | 'sequence'; // hierarchy = real parent/child, sequence = temporal order
 }

@@ -7,6 +7,7 @@ export function buildGraph(events: TraceEvent[]): { nodes: GraphNode[]; edges: G
   const nodes = new Map<string, GraphNode>();
   const edges: GraphEdge[] = [];
   let callIndex = 0; // increments per call_start, drives spiral placement
+  let previousId: string | null = null; // tracks the last call_start seen, for sequence edges
 
   for (const e of events) {
     if (e.type === 'call_start') {
@@ -24,8 +25,24 @@ export function buildGraph(events: TraceEvent[]): { nodes: GraphNode[]; edges: G
       });
 
       if (e.parentId) {
-        edges.push({ id: `${e.parentId}->${e.id}`, from: e.parentId, to: e.id });
+        // Real hierarchical relationship (parent/child)
+        edges.push({
+          id: `${e.parentId}->${e.id}`,
+          from: e.parentId,
+          to: e.id,
+          kind: 'hierarchy'
+        });
+      } else if (previousId) {
+        // No formal parent - connect to previous call so the sequence reads visually
+        edges.push({
+          id: `${previousId}->${e.id}`,
+          from: previousId,
+          to: e.id,
+          kind: 'sequence'
+        });
       }
+
+      previousId = e.id;
     }
 
     if (e.type === 'call_end') {

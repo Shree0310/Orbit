@@ -92,7 +92,9 @@ export default function Scene() {
         const from = nodeById.get(edge.from)?.position;
         const to = nodeById.get(edge.to)?.position;
         if (!from || !to) return null;
-        return <Line key={edge.id} points={[from, to]} color="#555" lineWidth={1} />;
+        // Hierarchy edges (parent/child) are brighter, sequence edges (temporal) are dimmer
+        const color = edge.kind === 'hierarchy' ? '#999' : '#555';
+        return <Line key={edge.id} points={[from, to]} color={color} lineWidth={1} />;
       })}
 
       {nodes.map((node) => (
