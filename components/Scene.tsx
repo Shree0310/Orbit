@@ -3,7 +3,7 @@
 
 import { useRef, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, Line, Text } from '@react-three/drei';
+import { OrbitControls, Line, Text, Billboard } from '@react-three/drei';
 import { useTraceStore } from '@/store/traceStore';
 import { useReplayTrace } from '@/hooks/useReplayTrace';
 import { GraphNode } from '@/types/trace';
@@ -51,32 +51,35 @@ function AnimatedNode({ node }: { node: GraphNode }) {
         <sphereGeometry args={[0.4, 16, 16]} />
         <meshStandardMaterial color={statusColor[node.status]} />
       </mesh>
-      <Text
-        position={[0, 0.7, 0]}
-        fontSize={0.28}
-        color="white"
-        anchorX="center"
-        anchorY="bottom"
-        outlineWidth={0.02}
-        outlineColor="black"
-      >
-        {node.toolName}
-      </Text>
+      <Billboard position={[0, 0.7, 0]}>
+        <Text
+          fontSize={0.28}
+          color="white"
+          anchorX="center"
+          anchorY="bottom"
+          outlineWidth={0.02}
+          outlineColor="black"
+        >
+          {node.toolName}
+        </Text>
+      </Billboard>
     </group>
   );
 }
 
 export default function Scene() {
-  useReplayTrace();
+  // Switch between 'mock', 'latest', or 'achievr-sample'
+  // 'achievr-sample' demonstrates real Achievr planner tool calls
+  useReplayTrace({ source: 'achievr-sample' });
   const nodes = useTraceStore((s) => s.nodes);
   const edges = useTraceStore((s) => s.edges);
   const nodeById = new Map(nodes.map((n) => [n.id, n]));
   const isUserControlling = useRef(false);
 
   return (
-    <Canvas camera={{ position: [6, 4, 10], fov: 50 }}>
+    <Canvas camera={{ position: [15, 12, 24], fov: 60 }}>
       <ambientLight intensity={0.6} />
-      <pointLight position={[10, 10, 10]} intensity={1} />
+      <pointLight position={[15, 15, 15]} intensity={1} />
       <OrbitControls
         onStart={() => { isUserControlling.current = true; }}
         onEnd={() => {

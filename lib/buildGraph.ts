@@ -1,25 +1,26 @@
 // lib/buildGraph.ts
 import { TraceEvent, GraphNode, GraphEdge } from '@/types/trace';
 
+const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5)); // ~137.5°
+
 export function buildGraph(events: TraceEvent[]): { nodes: GraphNode[]; edges: GraphEdge[] } {
   const nodes = new Map<string, GraphNode>();
   const edges: GraphEdge[] = [];
-  const depthCounts = new Map<number, number>();
-  const depthOf = new Map<string, number>();
+  let callIndex = 0; // increments per call_start, drives spiral placement
 
   for (const e of events) {
     if (e.type === 'call_start') {
-      const depth = e.parentId ? (depthOf.get(e.parentId) ?? 0) + 1 : 0;
-      depthOf.set(e.id, depth);
-      const siblingIndex = depthCounts.get(depth) ?? 0;
-      depthCounts.set(depth, siblingIndex + 1);
+      const i = callIndex++;
+      const radius = 2.0 * Math.sqrt(i + 1); // increased from 0.6 to 2.0 for more spacing
+      const angle = i * GOLDEN_ANGLE;
+      const y = i * 0.8; // increased from 0.15 to 0.8 for more vertical separation
 
       nodes.set(e.id, {
         id: e.id,
         parentId: e.parentId,
         toolName: e.toolName,
         status: 'pending',
-        position: [depth * 3, siblingIndex * 2 - 2, 0],
+        position: [radius * Math.cos(angle), y, radius * Math.sin(angle)],
       });
 
       if (e.parentId) {
