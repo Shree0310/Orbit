@@ -1,5 +1,5 @@
 // hooks/useReplayTrace.ts
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { mockTrace } from '@/lib/mockTrace';
 import { useTraceStore } from '@/store/traceStore';
 import { TraceEvent } from '@/types/trace';
@@ -17,8 +17,13 @@ export function useReplayTrace(options: UseReplayTraceOptions = {}) {
   const pushEvent = useTraceStore((s) => s.pushEvent);
   const reset = useTraceStore((s) => s.reset);
   const [isLoading, setIsLoading] = useState(false);
+  const hasLoaded = useRef(false); // guards against React Strict Mode double-invoke
 
   useEffect(() => {
+    // Prevent double-execution in React 18 Strict Mode
+    if (hasLoaded.current) return;
+    hasLoaded.current = true;
+
     let timers: NodeJS.Timeout[] = [];
 
     async function loadAndReplay() {
@@ -69,7 +74,12 @@ export function useReplayTrace(options: UseReplayTraceOptions = {}) {
 
     loadAndReplay();
 
-    return () => timers.forEach(clearTimeout);
+    return () => {
+      // Clear all scheduled timers on cleanup
+      timers.forEach(clearTimeout);
+      // Reset the guard flag so the hook can run again if source changes
+      hasLoaded.current = false;
+    };
   }, [pushEvent, reset, source]);
 
   return { isLoading };
