@@ -67,39 +67,59 @@ function AnimatedNode({ node }: { node: GraphNode }) {
   );
 }
 
-export default function Scene() {
-  // Switch between 'mock', 'latest', or 'achievr-sample'
-  // 'achievr-sample' demonstrates real Achievr planner tool calls
-  useReplayTrace({ source: 'achievr-sample' });
+interface SceneProps {
+  source?: import('@/hooks/useReplayTrace').TraceSource;
+  shouldStart?: boolean;
+  onComplete?: () => void;
+}
+
+export default function Scene({ source = 'achievr-sample', shouldStart = true, onComplete }: SceneProps = {}) {
+  const { isComplete } = useReplayTrace({ source, shouldStart });
   const nodes = useTraceStore((s) => s.nodes);
   const edges = useTraceStore((s) => s.edges);
   const nodeById = new Map(nodes.map((n) => [n.id, n]));
   const isUserControlling = useRef(false);
 
+  // Show replay button when complete
+  const showReplay = isComplete && onComplete;
+
   return (
-    <Canvas camera={{ position: [15, 12, 24], fov: 60 }}>
-      <ambientLight intensity={0.6} />
-      <pointLight position={[15, 15, 15]} intensity={1} />
-      <OrbitControls
-        onStart={() => { isUserControlling.current = true; }}
-        onEnd={() => {
-          setTimeout(() => { isUserControlling.current = false; }, 2000);
-        }}
-      />
-      <CameraRig isUserControlling={isUserControlling} />
+    <>
+      <Canvas camera={{ position: [15, 12, 24], fov: 60 }}>
+        <ambientLight intensity={0.6} />
+        <pointLight position={[15, 15, 15]} intensity={1} />
+        <OrbitControls
+          onStart={() => { isUserControlling.current = true; }}
+          onEnd={() => {
+            setTimeout(() => { isUserControlling.current = false; }, 2000);
+          }}
+        />
+        <CameraRig isUserControlling={isUserControlling} />
 
-      {edges.map((edge) => {
-        const from = nodeById.get(edge.from)?.position;
-        const to = nodeById.get(edge.to)?.position;
-        if (!from || !to) return null;
-        // Hierarchy edges (parent/child) are brighter, sequence edges (temporal) are dimmer
-        const color = edge.kind === 'hierarchy' ? '#999' : '#555';
-        return <Line key={edge.id} points={[from, to]} color={color} lineWidth={1} />;
-      })}
+        {edges.map((edge) => {
+          const from = nodeById.get(edge.from)?.position;
+          const to = nodeById.get(edge.to)?.position;
+          if (!from || !to) return null;
+          // Hierarchy edges (parent/child) are brighter, sequence edges (temporal) are dimmer
+          const color = edge.kind === 'hierarchy' ? '#999' : '#555';
+          return <Line key={edge.id} points={[from, to]} color={color} lineWidth={1} />;
+        })}
 
-      {nodes.map((node) => (
-        <AnimatedNode key={node.id} node={node} />
-      ))}
-    </Canvas>
+        {nodes.map((node) => (
+          <AnimatedNode key={node.id} node={node} />
+        ))}
+      </Canvas>
+
+      {showReplay && (
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20">
+          <button
+            onClick={onComplete}
+            className="px-6 py-3 border border-white/30 rounded-full text-sm text-white/80 bg-black/60 backdrop-blur-sm hover:bg-white/10 hover:border-white/50 transition-all duration-200"
+          >
+            Replay
+          </button>
+        </div>
+      )}
+    </>
   );
 }
