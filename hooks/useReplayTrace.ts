@@ -1,5 +1,5 @@
 // hooks/useReplayTrace.ts
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { mockTrace } from '@/lib/mockTrace';
 import { useTraceStore } from '@/store/traceStore';
 import { TraceEvent } from '@/types/trace';
@@ -17,16 +17,13 @@ export function useReplayTrace(options: UseReplayTraceOptions = {}) {
   const pushEvent = useTraceStore((s) => s.pushEvent);
   const reset = useTraceStore((s) => s.reset);
   const [isLoading, setIsLoading] = useState(false);
-  const hasLoaded = useRef(false); // guards against React Strict Mode double-invoke
 
   useEffect(() => {
-    // Prevent double-execution in React 18 Strict Mode
-    if (hasLoaded.current) return;
-    hasLoaded.current = true;
-
+    let cancelled = false; // guards against double-invocation and cleanup races
     let timers: NodeJS.Timeout[] = [];
 
     async function loadAndReplay() {
+      if (cancelled) return;
       setIsLoading(true);
       reset();
 
@@ -58,27 +55,33 @@ export function useReplayTrace(options: UseReplayTraceOptions = {}) {
 
         // Schedule all events
         timers = normalizedEvents.map((event) =>
-          setTimeout(() => pushEvent(event), event.timestamp * SPEED)
+          setTimeout(() => {
+            if (!cancelled) pushEvent(event);
+          }, event.timestamp * SPEED)
         );
 
-        setIsLoading(false);
+        if (!cancelled) setIsLoading(false);
       } catch (error) {
         console.error('Failed to load trace:', error);
         // Fallback to mock trace on error
-        timers = mockTrace.map((event) =>
-          setTimeout(() => pushEvent(event), event.timestamp * SPEED)
-        );
-        setIsLoading(false);
+        if (!cancelled) {
+          timers = mockTrace.map((event) =>
+            setTimeout(() => {
+              if (!cancelled) pushEvent(event);
+            }, event.timestamp * SPEED)
+          );
+          setIsLoading(false);
+        }
       }
     }
 
     loadAndReplay();
 
     return () => {
-      // Clear all scheduled timers on cleanup
+      // Mark as cancelled to prevent any pending timers from firing
+      cancelled = true;
+      // Clear all scheduled timers
       timers.forEach(clearTimeout);
-      // Reset the guard flag so the hook can run again if source changes
-      hasLoaded.current = false;
     };
   }, [pushEvent, reset, source]);
 
